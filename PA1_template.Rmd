@@ -1,25 +1,110 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+#  Reproducible Research
+## Assignment 1
+
+Read the data into a data table.
+
+```{r, echo=TRUE}
+d <- read.table('repdata_data_activity/activity.csv', sep = ',', header = TRUE, na.strings = 'NA')
+origNames <- names(d)
+d$datetime = strptime(d$date, '%Y-%m-%d')
+```
+
+Calculate the total steps taken in a day.
+
+```{r, echo=TRUE}
+tot <- aggregate(steps ~ date, d, sum)
+names(tot) <- c("Date", "Steps")
+head(tot)
+```
 
 
-## Loading and preprocessing the data
+Create a histogram
+
+```{r, echo=TRUE}
+tot$datetime = strptime(tot$Date, '%Y-%m-%d')
+barplot(tot$Steps, space = 0)
+```
 
 
+Mean and median
 
-## What is mean total number of steps taken per day?
+```{r, echo=TRUE}
+stepsmean <- mean(tot$Steps)
+print(stepsmean)
+stepsmedian <- median(tot$Steps)
+print(stepsmedian)
+```
+
+Plot the average number of steps in each interval across all days
+
+```{r, echo=TRUE}
+avg <- aggregate(d$steps ~ d$interval, d, mean)
+names(avg) <- c("Interval", "Mean")
+plot(avg$Interval, avg$Mean, type = "l", xlab = "Time", ylab = "Average Steps")
+```
+
+Maximum number of steps in a 5 minute interval
+```{r, echo=TRUE}
+print(avg[avg$Mean == max(avg$Mean),])
+```
 
 
+Number of rows with missing data
 
-## What is the average daily activity pattern?
+```{r, echo=TRUE}
+NAs <- d[is.na(d$steps),]
+print(nrow(NAs))
+```
 
+Impute missing data using median calculated from available data
 
+```{r, echo=TRUE}
+med <- aggregate(d$steps ~ d$interval, d, median)
+names(med) <- c("Interval", "Median")
+dWithMed <-merge(d, med, by.x = "interval", by.y ="Interval")
+dWithMed$imputedSteps = ifelse(is.na(dWithMed$steps), dWithMed$Median, dWithMed$steps)
+ordereddata <- dWithMed[order(dWithMed$date, dWithMed$interval), ]
+Imputeddata <- ordereddata[, c(6, 3, 1)]
+names(Imputeddata) <- origNames
+head(Imputeddata)
+```
 
-## Imputing missing values
+Create a histogram
 
+```{r, echo=TRUE}
+tot2 <- aggregate(steps ~ date, Imputeddata, sum)
+names(tot2) <- c("Date", "Steps")
+barplot(tot2$Steps, space = 0)
+```
 
+Mean and median
 
-## Are there differences in activity patterns between weekdays and weekends?
+```{r, echo=TRUE}
+print(mean(tot2$Steps))
+print(median(tot2$Steps))
+```
+
+Compare activity during weekdays vs. weekends
+
+```{r, echo=TRUE}
+Imputeddata$datetime = strptime(Imputeddata$date, '%Y-%m-%d')
+Imputeddata$day <- weekdays(Imputeddata$datetime)
+Imputeddata$weekend <- ifelse(Imputeddata$day=="Saturday" | Imputeddata$day=="Sunday","Y","N")
+
+avgWeekDay <- aggregate(steps ~ interval, Imputeddata[Imputeddata$weekend == 'N',], mean)
+avgWeekDay$weekend = as.factor('Weekday')
+avgWeekEnd <- aggregate(steps ~ interval, Imputeddata[Imputeddata$weekend == 'Y',], mean)
+avgWeekEnd$weekend = as.factor('Weekend')
+avg2 = rbind(avgWeekDay,avgWeekEnd)
+head(avg2)
+
+library(lattice)
+xyplot(steps~interval|weekend,
+       data=avg2,
+       type="l",
+       layout=c(1,2),
+       xlab = "Time",
+       ylab = "Average Steps",
+)
+```
+
