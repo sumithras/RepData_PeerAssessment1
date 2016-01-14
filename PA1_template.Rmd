@@ -107,4 +107,3 @@ xyplot(steps~interval|weekend,
        ylab = "Average Steps",
 )
 ```
-
